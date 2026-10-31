@@ -212,3 +212,7 @@ details ol{margin:10px 0 0;padding-left:22px;color:var(--muted)}
 .lc-tried input{width:18px;height:18px}
 .lc-warn{margin:12px 0 0;font-size:15px;color:var(--muted);max-width:none}
 .lc-next{margin:0;padding-left:20px;font-size:15px}
+
+.navhead{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:12px 12px 4px}
+.navhead:first-child{padding-top:4px}
+.sum tr.sumhead td{font-weight:700;color:var(--muted);font-size:14px;padding-top:18px;text-align:left}

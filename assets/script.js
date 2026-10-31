@@ -113,11 +113,11 @@ const BUILD=[
   ['Forma',[['Zadawaj pytania po jednym. Po każdej odpowiedzi popraw moje błędy językowe.',1],['Napisz od razu wszystkie pytania i odpowiedzi.',0],['Odpowiadaj po angielsku.',0]],'Rozmowa krok po kroku jest podobna do prawdziwej. Poprawki pomagają w nauce polskiego.'],
   ['Rola',[['Jesteś życzliwym, ale wymagającym rekruterem.',1],['Jesteś moim kolegą.',0],['Jesteś wyszukiwarką internetową.',0]],'Rekruter zada pytania tak jak prawdziwa osoba w firmie.']]}
 ];
-function stBuild(body){
-  const restart=()=>stBuild(body); let si=0,pts=0,tot=0;
+function buildTask(body,id,SC,endMsg){
+  const restart=()=>buildTask(body,id,SC,endMsg); let si=0,pts=0,tot=0;
   function show(){
-    const S=BUILD[si]; body.innerHTML='';
-    body.append(h(`<p class="progress">Sytuacja ${si+1} z ${BUILD.length}</p>`));
+    const S=SC[si]; body.innerHTML='';
+    body.append(h(`<p class="progress">Sytuacja ${si+1} z ${SC.length}</p>`));
     body.append(h(`<p class="q">${S.s}</p>`));
     body.append(h('<p class="lead">Zbuduj polecenie. W każdym wierszu wybierz najlepszy fragment. Na dole zobaczysz całe polecenie.</p>'));
     const pick=Array(S.c.length).fill(null);
@@ -138,9 +138,9 @@ function stBuild(body){
         out.push(`<li class="${ok?'':'miss'}"><b>${S.c[ci][0]}:</b> ${S.c[ci][2]}</li>`)});
       pts+=good; tot+=S.c.length; ctl.remove();
       fb.innerHTML=`<div class="feedback${good===S.c.length?'':' bad'}"><b>Dobre wybory: ${good} z ${S.c.length}.</b><ul class="whylist">${out.join('')}</ul></div>`;
-      const nx=h(`<div class="row"><button class="btn">${si+1<BUILD.length?'Następna sytuacja':'Zobacz wynik'}</button></div>`); fb.append(nx);
+      const nx=h(`<div class="row"><button class="btn">${si+1<SC.length?'Następna sytuacja':'Zobacz wynik'}</button></div>`); fb.append(nx);
       const nb=nx.querySelector('button'); nb.focus();
-      nb.onclick=()=>{si++; if(si<BUILD.length) show(); else result(body,'budowa',pts/tot*25,`Dobre wybory: ${pts} z ${tot}. Dobre polecenie ma cztery części: zadanie, kontekst, formę i rolę.`,restart)};
+      nb.onclick=()=>{si++; if(si<SC.length) show(); else result(body,id,pts/tot*25,`Dobre wybory: ${pts} z ${tot}. ${endMsg}`,restart)};
     };
   }
   show();
@@ -177,13 +177,13 @@ const ANSWER=[
  ['Szczegóły znajdziesz na stronie www.urlopy-gov.pl/przepisy.',1,'To nie jest strona rządowa. Adresy stron urzędów kończą się na gov.pl, np. www.gov.pl.'],
  ['Jeśli masz wątpliwości, zapytaj w dziale kadr.',0,'Dobra rada. Kadry znają zasady w twojej firmie.']
 ];
-function stVerify(body){
-  const restart=()=>stVerify(body);
-  const flags=ANSWER.filter(a=>a[1]===1).length;
-  body.innerHTML=`<p class="lead">Pytanie do czatu AI dotyczyło urlopu wypoczynkowego. Odpowiedź brzmi pewnie, ale ma ${flags} błędy lub zmyślenia. Kliknij zdania, które są nieprawdziwe albo wyglądają na zmyślone. Potem kliknij „Sprawdź”.</p>`;
+function verifyTask(body,id,ANS,topic,endMsg){
+  const restart=()=>verifyTask(body,id,ANS,topic,endMsg);
+  const flags=ANS.filter(a=>a[1]===1).length;
+  body.innerHTML=`<p class="lead">${topic} Odpowiedź brzmi pewnie, ale ma ${flags} błędy lub zmyślenia. Kliknij zdania, które są nieprawdziwe albo wyglądają na zmyślone. Potem kliknij „Sprawdź”.</p>`;
   const box=h('<div class="chatans"><p class="ca-l">Odpowiedź czatu AI</p><p class="ca-t"></p></div>'); body.append(box);
   const t=box.querySelector('.ca-t');
-  ANSWER.forEach(a=>{const s=h(`<button class="hs" aria-pressed="false">${a[0]}</button>`); s._a=a; s.onclick=()=>s.setAttribute('aria-pressed',String(s.getAttribute('aria-pressed')!=='true')); t.append(s); t.append(document.createTextNode(' '))});
+  ANS.forEach(a=>{const s=h(`<button class="hs" aria-pressed="false">${a[0]}</button>`); s._a=a; s.onclick=()=>s.setAttribute('aria-pressed',String(s.getAttribute('aria-pressed')!=='true')); t.append(s); t.append(document.createTextNode(' '))});
   const ctl=h('<div class="row"><button class="btn">Sprawdź</button></div>'); body.append(ctl);
   ctl.querySelector('button').onclick=()=>{
     let f=0,w=0; const out=[];
@@ -192,7 +192,7 @@ function stVerify(body){
       else if(a[1]===0&&on){w++; s.classList.add('hs-bad'); out.push(`<li class="miss"><b>Niepotrzebnie zaznaczone:</b> ${a[2]}</li>`)}
       else if(a[1]===2){out.push(`<li><b>Do sprawdzenia, ale prawdziwe:</b> ${a[2]}</li>`)}});
     ctl.remove();
-    result(body,'weryfikacja',(f-0.5*w)/flags*25,`Znalezione błędy: ${f} z ${flags}. Niepotrzebne zaznaczenia: ${w}. AI najczęściej zmyśla nazwy, daty, liczby, przepisy i źródła.`,restart);
+    result(body,id,(f-0.5*w)/flags*25,`Znalezione błędy: ${f} z ${flags}. Niepotrzebne zaznaczenia: ${w}. ${endMsg}`,restart);
     const r=body.querySelector('.result'); box.style.marginTop='20px'; r.append(box); r.append(h(`<ul class="whylist">${out.join('')}</ul>`));
   };
 }
@@ -224,7 +224,7 @@ const QUSE=[
 ];
 
 /* ---------- 9. Rozmowa krok po kroku ---------- */
-const CHAT=[
+const CHAT1=[
  {ai:'Hej! Chciałam dać znać, że niestety nasze spotkanie w środę musi się przesunąć, bo wypadło mi coś pilnego i naprawdę nie dam rady, sorki za zamieszanie, mam nadzieję, że to nie problem, daj znać, kiedy ci pasuje, bo ja jestem dość elastyczna…',
   o:[['Napisz krócej i bardziej oficjalnie, najwyżej 4 zdania.',1,'Mówisz dokładnie, co nie pasuje: długość i ton.'],['Popraw.',0,'AI nie wie, co poprawić. Może zmienić coś innego.'],['Napisz od nowa.',0,'Dostaniesz nową wersję z tymi samymi problemami.']]},
  {ai:'Dzień dobry, uprzejmie informuję, że spotkanie zaplanowane na środę musi zostać przełożone. Przepraszam za utrudnienia. Będę wdzięczna za informację o dogodnym terminie. Z poważaniem, [imię i nazwisko]',
@@ -232,12 +232,12 @@ const CHAT=[
  {ai:'Dzień dobry, uprzejmie informuję, że spotkanie zaplanowane na środę musi zostać przełożone. Czy pasuje Panu czwartek o 14:00? Jeśli nie, proszę o propozycję innego terminu. Przepraszam za utrudnienia. Z poważaniem, [imię i nazwisko]',
   o:[['Podpisz: Olena Melnyk, specjalistka ds. obsługi klienta.',1,'To ostatnia brakująca część maila.'],['Wyślij ten mail.',0,'Czat nie wyśle maila. Kopiujesz tekst i wysyłasz go sama lub sam.'],['Dodaj emotikony.',0,'Emotikony nie pasują do oficjalnej wiadomości.']]}
 ];
-const CHAT_END='Dzień dobry, uprzejmie informuję, że spotkanie zaplanowane na środę musi zostać przełożone. Czy pasuje Panu czwartek o 14:00? Jeśli nie, proszę o propozycję innego terminu. Przepraszam za utrudnienia. Z poważaniem, Olena Melnyk, specjalistka ds. obsługi klienta';
-function stChat(body){
-  const restart=()=>stChat(body); let i=0,ok=0;
-  body.innerHTML='<p class="lead">Cel: krótki, oficjalny mail do klienta. Spotkanie ze środy przenosisz na czwartek, 14:00. Pierwsza wersja od AI jest daleka od celu. W każdym kroku wybierz, co odpisać.</p>';
+const CHAT1_END='Dzień dobry, uprzejmie informuję, że spotkanie zaplanowane na środę musi zostać przełożone. Czy pasuje Panu czwartek o 14:00? Jeśli nie, proszę o propozycję innego terminu. Przepraszam za utrudnienia. Z poważaniem, Olena Melnyk, specjalistka ds. obsługi klienta';
+function chatTask(body,id,cfg){
+  const restart=()=>chatTask(body,id,cfg); let i=0,ok=0; const CHAT=cfg.steps;
+  body.innerHTML=`<p class="lead">${cfg.lead} Pierwsza wersja od AI jest daleka od celu. W każdym kroku wybierz, co odpisać.</p>`;
   const log=h('<div class="chatlog"></div>'); body.append(log);
-  log.append(h('<div class="msg-u"><p class="who">Ty</p><p>Napisz maila do klienta, że przekładam spotkanie.</p></div>'));
+  log.append(h(`<div class="msg-u"><p class="who">Ty</p><p>${cfg.first}</p></div>`));
   const area=h('<div></div>'); body.append(area);
   function step(){
     const C=CHAT[i]; log.append(h(`<div class="msg-a"><p class="who">AI</p><p>${C.ai}</p></div>`));
@@ -250,7 +250,7 @@ function stChat(body){
         area.append(h(`<div class="feedback${right?'':' bad'}"><b>${right?'Dobry wybór.':'Lepsza odpowiedź: „'+best[0]+'”'}</b>${C.o[k][2]}</div>`));
         const nx=h('<div class="row"><button class="btn">Dalej</button></div>'); area.append(nx); const nb=nx.querySelector('button'); nb.focus();
         nb.onclick=()=>{log.append(h(`<div class="msg-u"><p class="who">Ty</p><p>${best[0]}</p></div>`)); i++;
-          if(i<CHAT.length) step(); else {log.append(h(`<div class="msg-a"><p class="who">AI</p><p>${CHAT_END}</p></div>`)); area.innerHTML=''; result(area,'rozmowa',ok/CHAT.length*25,`Dobre odpowiedzi: ${ok} z ${CHAT.length}. W trzech krokach powstał mail gotowy do wysłania. Wystarczyło za każdym razem napisać, co dokładnie zmienić.`,restart)}};
+          if(i<CHAT.length) step(); else {log.append(h(`<div class="msg-a"><p class="who">AI</p><p>${cfg.end}</p></div>`)); area.innerHTML=''; result(area,id,ok/CHAT.length*25,`Dobre odpowiedzi: ${ok} z ${CHAT.length}. ${cfg.msg}`,restart)}};
       }; opts.append(b)});
   }
   step();
@@ -369,28 +369,142 @@ function showLibrary(filter='all'){
   focusPanel();
 }
 
+/* ================= CZĘŚĆ 2 ================= */
+const mt=(title,body,cls='')=>`<div class="mock ${cls}"><div class="mt">${title}</div><div class="mb">${body}</div></div>`;
+
+/* ---------- 10. AI czy specjalista ---------- */
+const WHO=[
+ {n:'Poprawienie błędów w mailu do przełożonego',v:'t',why:'Poprawianie tekstu to jedna z najmocniejszych stron AI.'},
+ {n:'Pomysły na temat prezentacji',v:'t',why:'AI szybko poda wiele pomysłów. Ty wybierasz najlepszy.'},
+ {n:'Streszczenie długiego, publicznego artykułu',v:'t',why:'AI dobrze streszcza. Ważne liczby sprawdź w oryginale.'},
+ {n:'Plan nauki polskiego na tydzień',v:'t',why:'AI ułoży plan dopasowany do twojego czasu i poziomu.'},
+ {n:'Wyjaśnienie trudnego słowa z ogłoszenia o pracę',v:'t',why:'AI wyjaśni słowo i poda przykład, także po ukraińsku.'},
+ {n:'Pytania do przećwiczenia przed rozmową kwalifikacyjną',v:'t',why:'AI może zagrać rekrutera i poprawiać twoje odpowiedzi.'},
+ {n:'Decyzja, czy podpisać umowę najmu z wysokimi karami',v:'n',why:'AI może wyjaśnić zapisy umowy. Decyzję warto skonsultować, np. w punkcie nieodpłatnej pomocy prawnej.'},
+ {n:'Ocena, co oznacza silny ból w klatce piersiowej',v:'n',why:'To może być nagły stan. Dzwoń pod numer 112 albo idź do lekarza.'},
+ {n:'Oficjalne tłumaczenie dyplomu do urzędu',v:'n',why:'Urząd zwykle wymaga tłumaczenia od tłumacza przysięgłego.'},
+ {n:'Ostateczne wyliczenie podatku w zeznaniu PIT',v:'n',why:'Sprawdź w e-Urzędzie Skarbowym (podatki.gov.pl) albo u doradcy podatkowego.'}
+];
+
+/* ---------- 11. Weryfikacja: Excel ---------- */
+const ANSWER2=[
+ ['Formuły w Excelu zaczynają się od znaku równości „=”.',0,'To prawda.'],
+ ['Funkcja SUMA dodaje liczby z wybranych komórek, np. =SUMA(B2:B10).',0,'To prawda.'],
+ ['W polskiej wersji Excela argumenty funkcji oddziela się przecinkami, np. =SUMA(B2,B3).',1,'Nieprawda. W polskiej wersji Excela zwykle używa się średników: =SUMA(B2;B3).'],
+ ['Funkcja ŚREDNIA.AUTO liczy średnią i sama pomija komórki z błędami.',1,'Takiej funkcji nie ma. Średnią liczy funkcja ŚREDNIA. To typowe zmyślenie: nazwa brzmi wiarygodnie.'],
+ ['Funkcja ZLICZ.JEŻELI liczy komórki, które spełniają warunek, np. ile razy w kolumnie jest słowo „tak”.',0,'To prawda.'],
+ ['Dzielenie przez zero daje w polskim Excelu błąd #DZIEL/0!.',2,'To prawda. To zdanie nie daje ani punktów, ani minusów.'],
+ ['Plik Excela zapiszesz skrótem Ctrl + Z.',1,'Nieprawda. Ctrl + Z cofa ostatnią zmianę. Plik zapisuje skrót Ctrl + S.'],
+ ['Błąd #NAZWA? często oznacza literówkę w nazwie funkcji.',0,'To prawda.']
+];
+
+/* ---------- 12. Prywatność w czacie ---------- */
+const QPRIV=[
+ {q:'Gdzie zwykle znajdziesz opcje prywatności czatu AI?',o:['W ustawieniach konta lub ustawieniach czatu','W koszu przeglądarki','W aplikacji banku'],a:0,why:'W ustawieniach sprawdzisz m.in. historię rozmów, pamięć czatu i wykorzystanie danych.'},
+ {q:'W ustawieniach jest opcja dotycząca „ulepszania modelu” albo „trenowania”. Czego zwykle dotyczy?',o:['Tego, czy twoje rozmowy mogą pomóc rozwijać narzędzie','Szybkości odpowiedzi','Języka, w którym czat odpowiada'],a:0,why:'W wielu narzędziach możesz zdecydować, czy twoje rozmowy mogą być używane do rozwoju AI.'},
+ {q:'Klikasz „Udostępnij” przy rozmowie z czatem i dostajesz link. Co to zwykle oznacza?',o:['Każda osoba, która dostanie link, może zobaczyć tę rozmowę','Tylko ty możesz otworzyć ten link','Rozmowa zostanie usunięta'],a:0,why:'Zanim wyślesz link, sprawdź, czy w rozmowie nie ma prywatnych informacji.'},
+ {q:'Korzystasz z czatu AI na wspólnym komputerze, np. w bibliotece. Co robisz na koniec?',o:['Wylogowuję się z konta','Zamykam tylko kartę przeglądarki','Zostawiam otwarte konto dla innych'],a:0,why:'Bez wylogowania następna osoba może zobaczyć twoje rozmowy.'},
+ {q:'Firma daje ci firmowe konto w narzędziu AI. Do czego go używasz?',o:['Do zadań służbowych, zgodnie z zasadami firmy','Do wszystkich spraw, także rodzinnych','Daję login znajomemu, żeby też mógł korzystać'],a:0,why:'Konto firmowe służy do pracy. Firma może mieć zasady dotyczące danych i bezpieczeństwa.'},
+ {q:'W rozmowie z czatem przez pomyłkę jest twój numer telefonu. Co możesz zrobić?',o:['Usunąć tę rozmowę z historii i sprawdzić ustawienia pamięci czatu','Nic się nie da zrobić','Udostępnić rozmowę znajomym, żeby ją sprawdzili'],a:0,why:'Usunięcie rozmowy i sprawdzenie pamięci czatu to najlepsze, co możesz zrobić. Następnym razem usuń dane przed wysłaniem.'}
+];
+
+/* ---------- 13. Oszustwa z użyciem AI ---------- */
+const QSCAM=[
+ {mock:mt('Grupa na Facebooku','Praca w Niemczech dla osób z Ukrainy! 800 zł dziennie, bez języka, bez doświadczenia. Wpłać 300 zł za wizę i szkolenie. Kontakt tylko przez Telegram.'),q:'Jak oceniasz to ogłoszenie?',o:['Raczej w porządku','Raczej oszustwo'],a:1,fixed:1,why:'Bardzo wysoka pensja, „bez wymagań”, kontakt tylko przez komunikator i opłata z góry to typowe sygnały. Agencja zatrudnienia nie może brać pieniędzy za samo znalezienie pracy. Przy pracy za granicą może pobrać tylko udokumentowane koszty, np. wizy, i tylko na podstawie umowy. Legalne agencje znajdziesz w rejestrze KRAZ.'},
+ {mock:mt('Portal z ofertami pracy','<b>Magazynier, Bielsko-Biała.</b> Umowa o pracę, 5200 zł brutto, praca na dwie zmiany. Pełna nazwa firmy, adres i NIP w ogłoszeniu. Zgłoszenia przez formularz na stronie.'),q:'Jak oceniasz to ogłoszenie?',o:['Raczej w porządku','Raczej oszustwo'],a:0,fixed:1,why:'Konkretne warunki, dane firmy i nikt nie chce pieniędzy. Firmę możesz dodatkowo sprawdzić w rejestrze po numerze NIP.'},
+ {mock:mt('Reklama wideo w internecie','Znany prezenter telewizyjny mówi: „Wpłać 1000 zł na tę platformę, a za miesiąc dostaniesz 10 000 zł”.'),q:'Jak oceniasz tę reklamę?',o:['Raczej w porządku','Raczej oszustwo'],a:1,fixed:1,why:'AI potrafi podrobić twarz i głos znanej osoby. Obietnica szybkiego, pewnego zysku to zawsze sygnał ostrzegawczy.'},
+ {mock:mt('Połączenie telefoniczne','Głos twojego przełożonego: „Pilnie kup karty podarunkowe za 2000 zł i wyślij mi zdjęcia kodów. Oddam jutro”.'),q:'Jak oceniasz tę prośbę?',o:['Raczej w porządku','Raczej oszustwo'],a:1,fixed:1,why:'Głos można podrobić za pomocą AI. Karty podarunkowe to częsty sposób oszustów na zabranie pieniędzy. Rozłącz się i zadzwoń do przełożonego na znany numer.'},
+ {mock:mt('SMS','Dzień dobry, dostaliśmy Pani/Pana CV. Aby dokończyć rekrutację, prosimy zainstalować aplikację z linku i podać dane karty do weryfikacji.'),q:'Jak oceniasz tę wiadomość?',o:['Raczej w porządku','Raczej oszustwo'],a:1,fixed:1,why:'Pracodawca nie potrzebuje danych karty ani aplikacji z linku w SMS-ie. Taka aplikacja może przejąć telefon.'},
+ {mock:mt('E-mail','Odpowiedź na twoje zgłoszenie z portalu z ofertami pracy: zaproszenie na rozmowę w siedzibie firmy pod adresem z ogłoszenia. Mail przyszedł z adresu firmy z ogłoszenia. Jest możliwość zmiany terminu.'),q:'Jak oceniasz tę wiadomość?',o:['Raczej w porządku','Raczej oszustwo'],a:0,fixed:1,why:'Adres, firma i ogłoszenie się zgadzają, a nikt nie prosi o pieniądze ani dane. Tak wygląda zwykłe zaproszenie na rozmowę.'}
+];
+
+/* ---------- 14. Ton i styl ---------- */
+const QTONE=[
+ {q:'Piszesz pierwszy mail do urzędu i nie znasz nazwiska urzędnika. Jak zacząć?',o:['„Szanowni Państwo,”','„Cześć,”','„Hej!”'],a:0,why:'„Szanowni Państwo” to bezpieczny początek oficjalnego maila do instytucji.'},
+ {q:'Jak zakończyć oficjalny mail?',o:['„Z poważaniem”','„Buziaki”','„Nara”'],a:0,why:'„Z poważaniem” pasuje do oficjalnych wiadomości. W mniej oficjalnych mailach w pracy często pisze się „Pozdrawiam”.'},
+ {q:'Rozmawiasz z nowym przełożonym. Jak się do niego zwracasz, dopóki on nie zaproponuje inaczej?',o:['Formą „pan”, np. „Czy mógłby pan…?”','Formą „ty”, np. „Czy możesz…?”','Słowem „kolego”'],a:0,why:'W pracy zaczynamy od form „pan” i „pani”. Na „ty” przechodzimy, gdy ktoś to zaproponuje.'},
+ {q:'AI napisało: „Siema, szefie! Jutro mnie nie ma.” Do kogo to pasuje?',o:['Raczej do nikogo w pracy — to zbyt swobodne','Do przełożonego','Do klienta'],a:0,why:'To styl rozmowy z bliskim znajomym. Poproś AI o wersję uprzejmą i oficjalną.'},
+ {q:'Którą odpowiedź warto wysłać klientowi?',o:['„Dzień dobry, dziękuję za wiadomość. Odpowiem do piątku.”','„No dobra, odpiszę w piątek.”','„OK.”'],a:0,why:'Klient widzi, że wiadomość dotarła i kiedy dostanie odpowiedź. Ton jest uprzejmy.'},
+ {q:'Jak poprosić AI o zmianę tonu?',o:['„Napisz to bardziej uprzejmie i oficjalnie, do przełożonego.”','„Zmień.”','„Lepiej.”'],a:0,why:'Najlepiej podać ton i odbiorcę. Wtedy AI wie, jaki styl wybrać.'}
+];
+
+/* ---------- 15. Rozmowa 2: SMS do właściciela ---------- */
+const CHAT2=[
+ {ai:'Szanowny Panie, z przykrością zawiadamiam, iż w dniu dzisiejszym nastąpiła awaria urządzenia piorącego znajdującego się w wynajmowanym lokalu mieszkalnym, w związku z czym uprzejmie wnoszę o podjęcie stosownych działań naprawczych w możliwie najkrótszym terminie.',
+  o:[['Napisz to prościej, jako krótki SMS, najwyżej 3 zdania.',1,'Mówisz, co zmienić: styl, formę i długość.'],['Dodaj więcej szczegółów.',0,'Tekst jest już za długi i zbyt urzędowy.'],['Przetłumacz to na angielski.',0,'Właściciel pisze po polsku. Problemem jest styl, nie język.']]},
+ {ai:'Dzień dobry, pralka w mieszkaniu przestała działać. Czy może Pan przysłać kogoś do naprawy? Pozdrawiam',
+  o:[['Dodaj, że pralka nie działa od wczoraj i że jestem w domu po 16:00.',1,'Właściciel od razu wie, od kiedy jest problem i kiedy można przyjść.'],['Zrób z tego wiersz.',0,'Wiersz nie pomoże w naprawie pralki.'],['Napisz to bardziej stanowczo, z groźbą.',0,'Groźba psuje relację. Uprzejma prośba działa lepiej.']]},
+ {ai:'Dzień dobry, od wczoraj nie działa pralka w mieszkaniu. Czy może Pan przysłać kogoś do naprawy? Jestem w domu codziennie po 16:00. Pozdrawiam',
+  o:[['Podpisz: Olena, mieszkanie nr 5.',1,'Właściciel wie, kto pisze, nawet jeśli nie ma zapisanego numeru.'],['Usuń powitanie.',0,'Powitanie jest uprzejme i potrzebne.'],['Dodaj na końcu: „Proszę odpisać natychmiast!”',0,'To brzmi niegrzecznie.']]}
+];
+const CHAT2_END='Dzień dobry, od wczoraj nie działa pralka w mieszkaniu. Czy może Pan przysłać kogoś do naprawy? Jestem w domu codziennie po 16:00. Pozdrawiam, Olena, mieszkanie nr 5';
+
+/* ---------- 16. Budowa polecenia 2 ---------- */
+const BUILD2=[
+ {s:'Dostajesz do podpisania pierwszą w Polsce umowę zlecenie i chcesz ją zrozumieć.',c:[
+  ['Zadanie',[['Wyjaśnij mi najważniejsze punkty tej umowy.',1],['Czy mam podpisać tę umowę?',0],['Umowa.',0]],'AI może wyjaśnić umowę. Decyzja o podpisaniu należy do ciebie.'],
+  ['Kontekst',[['To moja pierwsza umowa w Polsce. Z tekstu usunięte są dane osobowe i nazwa firmy.',1],['Umowa jest długa.',0],['Firma jest z Krakowa.',0]],'AI wie, że ma tłumaczyć od podstaw. Usunięte dane chronią ciebie i firmę.'],
+  ['Forma',[['Wyjaśnij punkt po punkcie, prostym językiem, po ukraińsku. Na końcu wypisz pytania do pracodawcy.',1],['Krótko.',0],['Użyj jak najwięcej terminów prawniczych.',0]],'Prosty język i lista pytań pomogą w rozmowie z pracodawcą.'],
+  ['Rola',[['Jesteś doradcą, który tłumaczy umowy osobom bez wiedzy prawniczej.',1],['Jesteś moim adwokatem i odpowiadasz za moją decyzję.',0],['Jesteś kalkulatorem.',0]],'AI nie jest adwokatem i nie odpowiada za decyzje. Przy wątpliwościach skorzystaj z nieodpłatnej pomocy prawnej.']]},
+ {s:'Chcesz dorabiać korepetycjami z matematyki i potrzebujesz ogłoszenia.',c:[
+  ['Zadanie',[['Napisz ogłoszenie o korepetycjach z matematyki.',1],['Matematyka.',0],['Rozwiąż zadanie z matematyki.',0]],'Zadanie musi opisywać to, czego potrzebujesz: ogłoszenie.'],
+  ['Kontekst',[['Uczę uczniów szkoły podstawowej. Mam 10 lat doświadczenia jako nauczycielka na Ukrainie. Zajęcia online i w Bielsku-Białej.',1],['Lubię matematykę.',0],['Mam czas po południu.',0]],'Doświadczenie, grupa uczniów i miejsce to informacje, których szukają rodzice.'],
+  ['Forma',[['Najwyżej 60 słów, na lokalny portal z ogłoszeniami. Cena: 60 zł za godzinę.',1],['Jak najdłużej.',0],['W formie tabeli z wzorami matematycznymi.',0]],'Krótkie ogłoszenie z ceną szybciej przyciąga uwagę.'],
+  ['Rola',[['Piszesz jako doświadczona nauczycielka do rodziców uczniów.',1],['Jesteś kalkulatorem naukowym.',0],['Jesteś uczniem, który nie lubi matematyki.',0]],'Rola pomaga dobrać ton: rzeczowy i budzący zaufanie.']]}
+];
+
+/* ---------- 17. Wiarygodne źródła ---------- */
+const QSRC=[
+ {q:'Gdzie sprawdzisz aktualne przepisy prawa w Polsce?',o:['W Internetowym Systemie Aktów Prawnych: isap.sejm.gov.pl','Na forum internetowym','W komentarzach pod filmem'],a:0,why:'ISAP prowadzi Sejm. Znajdziesz tam oficjalne teksty ustaw.'},
+ {q:'Gdzie znajdziesz oferty pracy z urzędów pracy?',o:['Na stronie praca.gov.pl','W losowej grupie w komunikatorze','W reklamie w mediach społecznościowych'],a:0,why:'praca.gov.pl to oficjalny serwis publicznych służb zatrudnienia.'},
+ {q:'Jak sprawdzisz, czy agencja zatrudnienia działa legalnie?',o:['W Krajowym Rejestrze Agencji Zatrudnienia (KRAZ)','W opiniach na Telegramie','Na stronie internetowej samej agencji'],a:0,why:'Legalna agencja musi być wpisana do rejestru KRAZ.'},
+ {q:'Gdzie sprawdzisz informacje o zasiłkach i składkach?',o:['Na stronie ZUS: zus.pl','W odpowiedzi czatu AI bez źródeł','Na blogu nieznanej osoby'],a:0,why:'ZUS to oficjalne źródło informacji o zasiłkach i składkach.'},
+ {q:'AI podało przepis, ale bez źródła. Co robisz najpierw?',o:['Proszę o nazwę ustawy i numer artykułu, a potem sprawdzam je w ISAP','Uznaję, że przepis na pewno istnieje','Proszę AI o dłuższą odpowiedź'],a:0,why:'Dłuższa odpowiedź nie jest bardziej prawdziwa. Liczy się źródło, które możesz sprawdzić.'},
+ {q:'Znajomy wysyła zrzut ekranu z odpowiedzią AI o legalizacji pobytu. Co robisz?',o:['Sprawdzam informacje na stronie urzędu wojewódzkiego lub na gov.pl','Wierzę, bo to odpowiedź z AI','Przesyłam zrzut dalej innym znajomym'],a:0,why:'Sprawy pobytu prowadzą urzędy wojewódzkie. Przepisy często się zmieniają, dlatego sprawdzaj je w oficjalnych źródłach.'}
+];
+
+/* ---------- 18. Uczciwe korzystanie z AI ---------- */
+const QETH=[
+ {q:'Czy możesz użyć AI do napisania CV?',o:['Tak, ale wszystkie informacje muszą być prawdziwe i sprawdzone','Nie, to jest zabronione','Tak, AI może dopisać doświadczenie, którego nie masz'],a:0,why:'AI może pomóc z językiem i układem CV. Nieprawdziwe informacje mogą skończyć się utratą pracy.'},
+ {q:'Chcesz użyć w prezentacji fragmentu artykułu, który znalazło AI. Co robisz?',o:['Podaję źródło albo piszę treść własnymi słowami','Kopiuję cały artykuł bez źródła','Podpisuję artykuł swoim nazwiskiem'],a:0,why:'Teksty innych osób są chronione prawem autorskim. Podanie źródła to też uczciwość wobec odbiorców.'},
+ {q:'Czy wolno zrobić z AI nagranie, w którym znana osoba mówi coś, czego nie powiedziała?',o:['Nie. To wprowadza ludzi w błąd i może naruszać prawo','Tak, jeśli to tylko żart dla znajomych','Tak, jeśli nagranie jest krótkie'],a:0,why:'Takie nagrania (deepfake) mogą komuś zaszkodzić, nawet jeśli miały być żartem.'},
+ {q:'Dziecko prosi AI o napisanie całego wypracowania do szkoły. Co jest lepszym pomysłem?',o:['AI pomaga zrozumieć temat i sprawdza tekst, a dziecko pisze samo','AI pisze całe wypracowanie','Dziecko kopiuje tekst z internetu'],a:0,why:'Dziecko uczy się wtedy pisać i myśleć. AI pomaga, ale nie zastępuje nauki.'},
+ {q:'Rekruter pyta, czy AI pomagało napisać list motywacyjny. Co odpowiadasz?',o:['Odpowiadam szczerze: treść i fakty są moje, AI pomogło z językiem','Mówię, że nie wiem, co to jest AI','Zaprzeczam, choć to nieprawda'],a:0,why:'Szczera odpowiedź buduje zaufanie. Korzystanie z AI jako pomocy językowej nie jest niczym złym.'},
+ {q:'Kto odpowiada za błąd w mailu, który napisało AI?',o:['Osoba, która wysłała mail','Firma, która stworzyła AI','Nikt, bo to błąd komputera'],a:0,why:'Wysyłasz tekst pod swoim imieniem. Dlatego zawsze czytasz go przed wysłaniem.'}
+];
+
 /* ---------- lista ćwiczeń ---------- */
 const ST=[
- {id:'gdzie',n:'Gdzie jest sztuczna inteligencja?',m:5,d:'Rozpoznawanie AI w codziennych narzędziach.',run:b=>sortTask(b,'gdzie',WHERE,[['t','Korzysta z AI'],['n','Nie korzysta z AI']],'Które narzędzia korzystają ze sztucznej inteligencji, a które działają według stałych zasad?','AI to programy, które uczą się na przykładach. Dlatego spotykasz je w wielu miejscach.')},
- {id:'dzialanie',n:'Jak działa czat AI',m:6,d:'Mocne i słabe strony czatów AI.',run:b=>quiz(b,'dzialanie',QHOW)},
- {id:'budowa',n:'Budowa dobrego polecenia',m:8,d:'Polecenie z czterech części: zadanie, kontekst, forma i rola.',run:stBuild},
- {id:'porownanie',n:'Które polecenie jest lepsze?',m:5,d:'Porównywanie par poleceń.',run:b=>quiz(b,'porownanie',QAB)},
- {id:'poprawki',n:'Co dopisać do polecenia?',m:5,d:'Poprawianie poleceń, które dały słaby wynik.',run:b=>quiz(b,'poprawki',QFIX)},
- {id:'weryfikacja',n:'Sprawdzanie odpowiedzi AI',m:7,d:'Szukanie błędów w odpowiedzi, która brzmi wiarygodnie.',run:stVerify},
- {id:'dane',n:'Co można wkleić do czatu?',m:5,d:'Bezpieczne korzystanie z AI.',run:b=>sortTask(b,'dane',PASTE,[['t','Można wkleić'],['n','Nie wklejać']],'Co możesz bezpiecznie wkleić do ogólnodostępnego czatu AI, a czego nie?','W pracy korzystaj z narzędzi AI, na które pozwala firma.')},
- {id:'zastosowania',n:'AI w codziennej pracy',m:8,d:'Excel, streszczenia, grafika, przepisy, pisma i tłumaczenia.',run:b=>quiz(b,'zastosowania',QUSE)},
- {id:'rozmowa',n:'Rozmowa krok po kroku',m:6,d:'Poprawianie tekstu kolejnymi poleceniami.',run:stChat}
+ {part:1,id:'gdzie',n:'Gdzie jest sztuczna inteligencja?',m:5,d:'Rozpoznawanie AI w codziennych narzędziach.',run:b=>sortTask(b,'gdzie',WHERE,[['t','Korzysta z AI'],['n','Nie korzysta z AI']],'Które narzędzia korzystają ze sztucznej inteligencji, a które działają według stałych zasad?','AI to programy, które uczą się na przykładach. Dlatego spotykasz je w wielu miejscach.')},
+ {part:1,id:'dzialanie',n:'Jak działa czat AI',m:6,d:'Mocne i słabe strony czatów AI.',run:b=>quiz(b,'dzialanie',QHOW)},
+ {part:1,id:'budowa',n:'Budowa dobrego polecenia',m:8,d:'Polecenie z czterech części: zadanie, kontekst, forma i rola.',run:b=>buildTask(b,'budowa',BUILD,'Dobre polecenie ma cztery części: zadanie, kontekst, formę i rolę.')},
+ {part:1,id:'porownanie',n:'Które polecenie jest lepsze?',m:5,d:'Porównywanie par poleceń.',run:b=>quiz(b,'porownanie',QAB)},
+ {part:1,id:'poprawki',n:'Co dopisać do polecenia?',m:5,d:'Poprawianie poleceń, które dały słaby wynik.',run:b=>quiz(b,'poprawki',QFIX)},
+ {part:1,id:'weryfikacja',n:'Sprawdzanie odpowiedzi AI',m:7,d:'Szukanie błędów w odpowiedzi, która brzmi wiarygodnie.',run:b=>verifyTask(b,'weryfikacja',ANSWER,'Pytanie do czatu AI dotyczyło urlopu wypoczynkowego.','AI najczęściej zmyśla nazwy, daty, liczby, przepisy i źródła.')},
+ {part:1,id:'dane',n:'Co można wkleić do czatu?',m:5,d:'Bezpieczne korzystanie z AI.',run:b=>sortTask(b,'dane',PASTE,[['t','Można wkleić'],['n','Nie wklejać']],'Co możesz bezpiecznie wkleić do ogólnodostępnego czatu AI, a czego nie?','W pracy korzystaj z narzędzi AI, na które pozwala firma.')},
+ {part:1,id:'zastosowania',n:'AI w codziennej pracy',m:8,d:'Excel, streszczenia, grafika, przepisy, pisma i tłumaczenia.',run:b=>quiz(b,'zastosowania',QUSE)},
+ {part:1,id:'rozmowa',n:'Rozmowa krok po kroku',m:6,d:'Poprawianie tekstu kolejnymi poleceniami.',run:b=>chatTask(b,'rozmowa',{steps:CHAT1,end:CHAT1_END,first:'Napisz maila do klienta, że przekładam spotkanie.',lead:'Cel: krótki, oficjalny mail do klienta. Spotkanie ze środy przenosisz na czwartek, 14:00.',msg:'W trzech krokach powstał mail gotowy do wysłania. Wystarczyło za każdym razem napisać, co dokładnie zmienić.'})},
+ {part:2,id:'kto',n:'AI czy specjalista?',m:5,d:'Kiedy AI dobrze pomoże, a kiedy potrzebny jest specjalista.',run:b=>sortTask(b,'kto',WHO,[['t','AI dobrze pomoże'],['n','Potrzebny specjalista lub oficjalne źródło']],'W których sprawach AI dobrze pomoże, a w których potrzebny jest specjalista albo oficjalne źródło?','AI pomaga z tekstem i pomysłami. Decyzje o zdrowiu, prawie i pieniądzach wymagają specjalisty.')},
+ {part:2,id:'excel',n:'Sprawdzanie odpowiedzi o Excelu',m:6,d:'Szukanie zmyśleń w odpowiedzi o funkcjach Excela.',run:b=>verifyTask(b,'excel',ANSWER2,'Pytanie do czatu AI dotyczyło podstaw Excela w polskiej wersji.','Przy Excelu sprawdzaj nazwy funkcji i separatory, najlepiej od razu w arkuszu.')},
+ {part:2,id:'prywatnosc',n:'Prywatność w czacie AI',m:5,d:'Ustawienia, udostępnianie rozmów i konta firmowe.',run:b=>quiz(b,'prywatnosc',QPRIV)},
+ {part:2,id:'oszustwa',n:'Oszustwa z użyciem AI',m:7,d:'Fałszywe oferty pracy, podrobione nagrania i głosy.',run:b=>quiz(b,'oszustwa',QSCAM,{intro:'Zobaczysz sześć ogłoszeń i wiadomości. Wszystkie firmy i sytuacje są wymyślone. Oceń, czy to raczej w porządku, czy raczej oszustwo.'})},
+ {part:2,id:'ton',n:'Ton i styl wiadomości',m:5,d:'Oficjalnie czy swobodnie: polskie formy grzecznościowe.',run:b=>quiz(b,'ton',QTONE)},
+ {part:2,id:'rozmowa2',n:'Rozmowa krok po kroku: SMS',m:5,d:'Poprawianie wiadomości do właściciela mieszkania.',run:b=>chatTask(b,'rozmowa2',{steps:CHAT2,end:CHAT2_END,first:'Napisz wiadomość do właściciela mieszkania, że zepsuła się pralka.',lead:'Cel: krótki, uprzejmy SMS do właściciela mieszkania o zepsutej pralce.',msg:'Z urzędowego pisma powstał prosty, uprzejmy SMS z ważnymi informacjami.'})},
+ {part:2,id:'budowa2',n:'Budowa polecenia: umowa i ogłoszenie',m:8,d:'Polecenia do spraw prywatnych i dodatkowej pracy.',run:b=>buildTask(b,'budowa2',BUILD2,'Przy umowach i pieniądzach AI tłumaczy, ale decyzję podejmujesz ty.')},
+ {part:2,id:'zrodla',n:'Wiarygodne źródła',m:5,d:'Gdzie sprawdzać przepisy, oferty pracy i informacje urzędowe.',run:b=>quiz(b,'zrodla',QSRC)},
+ {part:2,id:'uczciwosc',n:'Uczciwe korzystanie z AI',m:5,d:'CV, prawa autorskie, deepfake i odpowiedzialność.',run:b=>quiz(b,'uczciwosc',QETH)}
 ];
 function nextId(id){const k=ST.findIndex(s=>s.id===id); return ST[k+1]?ST[k+1].id:null}
 function totals(){const v=Object.values(state.best); return {pts:v.reduce((a,b)=>a+b,0), n:v.length}}
 function renderNav(){
   const ul=$('#navlist'); ul.innerHTML='';
   ST.forEach((s,k)=>{const sc=state.best[s.id];
+    if(k===0||ST[k-1].part!==s.part) ul.append(h(`<li class="navhead">Część ${s.part}: ${s.part===1?'Podstawy':'AI w praktyce'}</li>`));
     const li=h(`<li><button class="nav" data-id="${s.id}"><span class="n">${k+1}. ${s.n}</span><span class="m">ok. ${s.m} min</span><span class="s${sc!=null?' done':''}">${sc!=null?sc+' / 25':'—'}</span></button></li>`);
     const b=li.querySelector('button'); if(current===s.id) b.setAttribute('aria-current','true'); b.onclick=()=>openStation(s.id); ul.append(li)});
   [['intro','#nav-intro'],['lib','#nav-lib'],['sum','#nav-sum']].forEach(([k,sel])=>{const b=$(sel); if(current===k) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current')});
   $('#lib-count').textContent=`${Object.keys(state.tried).length} z ${LIB.length}`;
-  const t=totals(); $('#pts').textContent=`${t.pts} / 225 pkt`; $('#cnt').textContent=`${t.n} z ${ST.length} ćwiczeń`; $('#barfill').style.width=(t.pts/225*100)+'%';
+  const t=totals(); $('#pts').textContent=`${t.pts} / ${ST.length*25} pkt`; $('#cnt').textContent=`${t.n} z ${ST.length} ćwiczeń`; $('#barfill').style.width=(t.pts/(ST.length*25)*100)+'%';
 }
 function setPanel(id){if(cleanup){cleanup();cleanup=null} current=id; renderNav(); const p=$('#panel'); p.innerHTML=''; return p}
 function focusPanel(){const p=$('#panel'); const t=p.querySelector('h2'); if(t){t.setAttribute('tabindex','-1'); t.focus({preventScroll:true})} if(window.innerWidth<=860) p.scrollIntoView({block:'start'})}
@@ -402,24 +516,24 @@ function openStation(id){
 function showIntro(){
   const p=setPanel('intro');
   p.innerHTML=`<h2>Wprowadzenie</h2>
-  <p class="desc">Dziewięć ćwiczeń o sztucznej inteligencji: jak działa, jak pisać polecenia, jak sprawdzać odpowiedzi i jak bezpiecznie korzystać z AI. Ćwiczenia trwają około godziny.</p>
-  <p>Ćwiczenia możesz robić w dowolnej kolejności i powtarzać. Za każde ćwiczenie możesz dostać do 25 punktów, razem 225. Wyniki zapisują się w tej przeglądarce.</p>
+  <p class="desc">Osiemnaście ćwiczeń o sztucznej inteligencji w dwóch częściach. Każda część trwa około godziny.</p>
+  <p><b>Część 1: Podstawy</b> — jak działa AI, jak pisać polecenia, jak sprawdzać odpowiedzi i co można wkleić do czatu.<br><b>Część 2: AI w praktyce</b> — kiedy potrzebny jest specjalista, prywatność, oszustwa z użyciem AI, ton wiadomości, wiarygodne źródła i uczciwe korzystanie z AI.</p>
+  <p>Ćwiczenia możesz robić w dowolnej kolejności i powtarzać. Za każde ćwiczenie możesz dostać do 25 punktów, razem 450. Wyniki zapisują się w tej przeglądarce.</p>
   <p>Po ćwiczeniach przejdź do części <b>Zapytania do wypróbowania</b>. Znajdziesz tam gotowe zapytania do prawdziwego czatu AI: do szukania pracy, do pracy, do spraw prywatnych i urzędowych oraz do nauki polskiego.</p>
   <p>Ćwiczenia nie łączą się z żadnym czatem AI. Odpowiedzi czatu to przygotowane przykłady. Nic nie jest wysyłane.</p>
   <div class="row"><button class="btn" id="go">Zacznij pierwsze ćwiczenie</button><button class="btn alt" id="golib">Zapytania do wypróbowania</button></div>
   <details><summary>Informacje dla prowadzącego</summary><ol>
-    <li>Ćwiczenia 1–2 (ok. 10 min): wspólnie, jako wprowadzenie.</li>
-    <li>Ćwiczenia 3–5 (ok. 18 min): praca samodzielna. Potem warto wpisać najlepsze polecenia do prawdziwego czatu AI i porównać wyniki.</li>
-    <li>Ćwiczenia 6–9 (ok. 26 min): praca samodzielna, potem rozmowa o zmyśleniach z ćwiczenia 6.</li>
-    <li>Zapytania do wypróbowania: osobna część zajęć z dostępem do czatu AI (ok. 30–45 min). Każda osoba wybiera 3–4 zapytania ze swojej sytuacji. Uczestnicy potrzebują konta w wybranym czacie AI.</li>
+    <li>Część 1 (ok. 60 min): ćwiczenia 1–2 wspólnie, 3–9 samodzielnie. Po ćwiczeniu 6 rozmowa o zmyśleniach AI.</li>
+    <li>Część 2 (ok. 60 min): najlepiej na osobnych zajęciach. Po ćwiczeniu 13 warto porozmawiać o fałszywych ofertach pracy, które uczestnicy widzieli.</li>
+    <li>Zapytania do wypróbowania (ok. 30–45 min): praca z prawdziwym czatem AI. Każda osoba wybiera 3–4 zapytania ze swojej sytuacji. Uczestnicy potrzebują konta w wybranym czacie AI.</li>
   </ol></details>`;
   p.querySelector('#go').onclick=()=>openStation(ST[0].id); p.querySelector('#golib').onclick=()=>showLibrary(); focusPanel();
 }
 function showSummary(){
   const p=setPanel('sum'); const t=totals();
-  const rows=ST.map((s,k)=>`<tr><td>${k+1}. ${s.n}</td><td>${state.best[s.id]!=null?state.best[s.id]+' / 25':'nie wykonano'}</td></tr>`).join('');
+  const rows=ST.map((s,k)=>`${k===0||ST[k-1].part!==s.part?`<tr class="sumhead"><td colspan="2">Część ${s.part}: ${s.part===1?'Podstawy':'AI w praktyce'}</td></tr>`:''}<tr><td>${k+1}. ${s.n}</td><td>${state.best[s.id]!=null?state.best[s.id]+' / 25':'nie wykonano'}</td></tr>`).join('');
   p.innerHTML=`<h2>Podsumowanie wyników</h2><p class="desc">Wykonane ćwiczenia: ${t.n} z ${ST.length}. Liczy się najlepszy wynik z każdego ćwiczenia. Wypróbowane zapytania: ${Object.keys(state.tried).length} z ${LIB.length}.</p>
-  <table class="sum"><thead><tr><th>Ćwiczenie</th><th>Wynik</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Razem</td><td>${t.pts} / 225</td></tr></tfoot></table>
+  <table class="sum"><thead><tr><th>Ćwiczenie</th><th>Wynik</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Razem</td><td>${t.pts} / ${ST.length*25}</td></tr></tfoot></table>
   <div class="row"><button class="btn alt" id="reset">Wyczyść wyniki</button></div>`;
   let armed=false; const r=p.querySelector('#reset');
   r.onclick=()=>{if(!armed){armed=true; r.textContent='Kliknij jeszcze raz, aby potwierdzić'; setTimeout(()=>{armed=false; r.textContent='Wyczyść wyniki'},4000); return}
